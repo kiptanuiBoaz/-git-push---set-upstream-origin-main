@@ -3,6 +3,9 @@ const app = express();
 const mongoose = require("mongoose");
 const cors = require("cors")
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET_KEY = "*@&@0q08qglf)&#)({}NA>CVP04q0790^5tW%@%Esnfnnfljkgshr04090&%%9860WY"
 
 
 app.use(cors());
@@ -40,6 +43,30 @@ app.post("/register", async (req, res)=>{
     catch(err){
         res.send({status:err})
     }
+});
+
+app.post ("/login",async(req,res) =>{
+    // accesing the user credientials from UI form
+    const {email,password} = req.body;
+   // checking wether the user with the emeail exists in db
+    const user = await User.findOne({email});
+
+    if(!user) { return res.json({error:"User with this email not found"}); } 
+
+    if (await bcrypt.compare(password, user.password)){
+        // generating web token with random string
+        const token = jwt.sign({},JWT_SECRET_KEY);
+
+        if(res.status(201)){
+            return res.json({status:"ok", data:token})
+        }
+
+        else{
+            return res.json({error:"error"})
+        }
+    }
+
+    res.json({statue:"error" , error:"invalid password"});
 })
 
 require("./userSchema");
