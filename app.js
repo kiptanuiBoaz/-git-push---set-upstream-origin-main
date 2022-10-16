@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
-const cors = require("cors")
+const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -24,7 +24,10 @@ mongoose
 
 ;
 
-app.post("/register", async (req, res)=>{
+// registering api
+
+app
+    .post("/register", async (req, res)=>{
 
     const {fname,lname,email,password}  = req.body;
 
@@ -45,6 +48,7 @@ app.post("/register", async (req, res)=>{
     }
 });
 
+// logIn api
 app.post ("/login",async(req,res) =>{
     // accesing the user credientials from UI form
     const {email,password} = req.body;
@@ -52,10 +56,10 @@ app.post ("/login",async(req,res) =>{
     const user = await User.findOne({email});
 
     if(!user) { return res.json({error:"User with this email not found"}); } 
-
+    // comparing the password from user with that from db
     if (await bcrypt.compare(password, user.password)){
         // generating web token with random string
-        const token = jwt.sign({},JWT_SECRET_KEY);
+        const token = jwt.sign({email:user.email},JWT_SECRET_KEY);
 
         if(res.status(201)){
             return res.json({status:"ok", data:token})
@@ -67,6 +71,31 @@ app.post ("/login",async(req,res) =>{
     }
 
     res.json({statue:"error" , error:"invalid password"});
+})
+
+app.post("/user-data", async(req,res)=>{
+    const {token} =  req.body;
+    console.log(token);
+
+    try {
+        // checking if token is valid
+        const user = jwt.verify(token, JWT_SECRET_KEY);
+        const useremail = user.email;
+        // finding the user in the db using email
+        User.findOne({email:useremail})
+            .then((data)=>{
+                // returnig the data of user to the clinet side
+                res.send({status:"ok",data:data})
+            })
+
+            .catch((err)=>{
+                // returnig the error if the user is not found
+                res.send({status:"error",data:err})
+            })
+
+    } catch (error) {
+        res.send({status:"error",data:error})
+    }
 })
 
 require("./userSchema");
