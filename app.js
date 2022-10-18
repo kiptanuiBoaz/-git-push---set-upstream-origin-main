@@ -73,9 +73,10 @@ app.post ("/login",async(req,res) =>{
     res.json({statue:"error" , error:"invalid password"});
 })
 
+// api for obtanining user data ater logIn
 app.post("/user-data", async(req,res)=>{
     const {token} =  req.body;
-    console.log(token);
+    // console.log(token);
 
     try {
         // checking if token is valid
@@ -97,6 +98,90 @@ app.post("/user-data", async(req,res)=>{
         res.send({status:"error",data:error})
     }
 })
+
+// api for retrieving forgor password
+app.post("/forgot-password", async (req,res)=>{
+    const {email} = req.body ;
+
+    try {
+        const oldUser = await User.findOne({email});
+        // checking if user with the email exist
+        if (!oldUser) { 
+            return res.json({status : "user not found"}); 
+        }
+
+        const secret = JWT_SECRET_KEY + oldUser.password
+        const token = jwt.sign(
+            {email:oldUser.email, id:oldUser._id},
+            secret, 
+            {expiresIn:"5m"}
+        )
+        const link = `http://localhost:5000/reset-password/${oldUser._id}/${token}`;
+        console.log(link);
+        
+    } catch (error) {
+        
+    }
+})
+
+// api for authenticating  token from link
+app.get("/reset-password/:id/:token", async (req, res)=>{
+    //recieve tokena and id from link sent to user
+    const {id, token} = req.params;
+
+    const oldUser = await User.findOne({_id:id});
+    const secret = JWT_SECRET_KEY + oldUser.password
+    // checking if user with the email exist
+    if (!oldUser) { 
+        return res.json({status : "user not found"}); 
+    }
+    
+    
+    try {
+        const  verify = jwt.verify(token, secret);
+        verify && res.send({status : "verified"})
+        // render (verified.email to the ui for reset of password)
+    } catch (error) {
+        res.send("Not verified")
+    }
+
+
+
+})
+
+// api for actually resetting the user password
+app.post("/reset-password/:id/:token", async (req, res)=>{
+    //recieve tokena and id from link sent to user
+    const {id, token} = req.params; //from link sent
+    const {password} = req.body; //from the token recieved from ui
+
+
+    const oldUser = await User.findOne({_id:id});
+    const secret = JWT_SECRET_KEY + oldUser.password
+    // checking if user with the email exist
+    if (!oldUser) { 
+        return res.json({status : "user not found"}); 
+    }
+    // encrypting the recieved password
+   const encryptedPassword = await bcrypt.hash(password,10);
+//    updating the password in the User model
+   User.updateOne(
+        {_id:id} ,//what to update
+        {$set:{password:encryptedPassword}} //who to update
+
+    )
+
+    
+    try {
+        const  verify = jwt.verify(token, secret);
+        res.send({status : "verified"})
+        
+    } catch (error) {
+        res.send("Not verified")
+    }
+
+})
+
 
 require("./userSchema");
 
